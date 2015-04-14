@@ -58,6 +58,8 @@ static const char *trapname(int trapno)
 	return "(unknown trap)";
 }
 
+#define MAX_IDT_NUM 256
+extern uint32_t trap_handlers[];
 
 void
 trap_init(void)
@@ -65,6 +67,18 @@ trap_init(void)
 	extern struct Segdesc gdt[];
 
 	// LAB 3: Your code here.
+  int i = 0;
+  for (; i < 32; ++i) {
+    SETGATE(idt[i], 1, GD_KT, trap_handlers[i], 0);
+  }
+  SETGATE(idt[T_NMI], 0, GD_KT, trap_handlers[T_NMI], 0);
+
+  for (; i < 48 ; ++i) {
+    SETGATE(idt[i], 0, GD_KT, trap_handlers[i], 0);
+  }
+  SETGATE(idt[T_BRKPT], 0, GD_KT, trap_handlers[T_BRKPT], 3);
+
+  SETGATE(idt[T_SYSCALL], 0, GD_KT, trap_handlers[T_SYSCALL], 3);
 
 	// Per-CPU setup 
 	trap_init_percpu();
@@ -143,6 +157,32 @@ trap_dispatch(struct Trapframe *tf)
 {
 	// Handle processor exceptions.
 	// LAB 3: Your code here.
+  if  (tf->tf_trapno == IRQ_OFFSET + IRQ_SPURIOUS) {
+    cprintf("Spurious interrupt on irq 7\n");
+    print_trapframe(tf);
+    return;
+  }
+
+  if (tf->tf_trapno == T_PGFLT) {
+    page_fault_handler(tf);
+    return;
+  }
+
+  if (tf->tf_trapno == T_BRKPT) {
+    monitor(tf);
+    return;
+  }
+
+  if (tf->tf_trapno == T_SYSCALL) {
+    int syscall_ret = syscall(tf->tf_regs.reg_eax,
+            tf->tf_regs.reg_edx,
+            tf->tf_regs.reg_ecx,
+            tf->tf_regs.reg_ebx,
+            tf->tf_regs.reg_edi,
+            tf->tf_regs.reg_esi);
+    tf->tf_regs.reg_eax = syscall_ret;
+    return;
+  }
 
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
@@ -204,6 +244,10 @@ page_fault_handler(struct Trapframe *tf)
 	// Handle kernel-mode page faults.
 
 	// LAB 3: Your code here.
+  if (tf->tf_cs == GD_KT) {
+    print_trapframe(tf);
+    panic("kernel page fault va %08x\n", fault_va);
+  }
 
 	// We've already handled kernel-mode exceptions, so if we get here,
 	// the page fault happened in user mode.

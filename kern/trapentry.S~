@@ -308,8 +308,8 @@ TRAPHANDLER_NOEC(thdlr255, 255)
  * Lab 3: Your code here for _alltraps
  */
 
-.globl _alltraps
-_alltraps:
+.globl __alltraps
+__alltraps:
     pushl %ds
     pushl %es
     pushal
