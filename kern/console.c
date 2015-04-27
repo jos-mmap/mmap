@@ -158,11 +158,12 @@ cga_init(void)
 	crt_pos = pos;
 }
 
-
+extern uint8_t color_byte;
 
 static void
 cga_putc(int c)
 {
+  c |= (color_byte << 8);
 	// if no attribute given, then use black on white
 	if (!(c & ~0xFF))
 		c |= 0x0700;
