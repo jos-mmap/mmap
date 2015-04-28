@@ -354,14 +354,17 @@ page_fault_handler(struct Trapframe *tf)
     print_trapframe(tf);
     env_destroy(curenv);
   }
-  user_mem_assert(curenv, (void*) curenv->env_tf.tf_esp, (32 + sizeof(struct UTrapframe)), PTE_W);
   void* stackptr;
-  if (curenv->env_tf.tf_esp >= UXSTACKTOP - PGSIZE && curenv->env_tf.tf_esp < UXSTACKTOP) {
-    stackptr = (void*)(curenv->env_tf.tf_esp - 4);
+  int stacksz;
+  if (tf->tf_esp >= UXSTACKTOP - PGSIZE && tf->tf_esp < UXSTACKTOP) {
+    stackptr = (void*)(tf->tf_esp - 4);
+    stacksz = 4 + sizeof(struct UTrapframe);
   } else {
     stackptr = (void*)(UXSTACKTOP);
+    stacksz = sizeof(struct UTrapframe);
   }
   stackptr -= sizeof(struct UTrapframe);
+  user_mem_assert(curenv, (void*) stackptr, stacksz, PTE_W);
   struct UTrapframe utf;
   utf.utf_fault_va = fault_va;
   utf.utf_err = tf->tf_err; 
@@ -371,8 +374,8 @@ page_fault_handler(struct Trapframe *tf)
   utf.utf_esp = tf->tf_esp;
   *(struct UTrapframe*)stackptr = utf;
 
-  curenv->env_tf.tf_esp = (uintptr_t)stackptr;
-  curenv->env_tf.tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
+  tf->tf_esp = (uintptr_t)stackptr;
+  tf->tf_eip = (uintptr_t)curenv->env_pgfault_upcall;
   env_run(curenv);
 
     // Destroy the environment that caused the fault.
