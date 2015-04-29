@@ -309,6 +309,9 @@ page_fault_handler(struct Trapframe *tf)
 
 	// Handle kernel-mode page faults.
 
+  // cprintf("page_fault_handler: fault_va %p ", fault_va);
+  // cprintf("tf->tf_cs %08x\n", tf->tf_cs);
+
 	// LAB 3: Your code here.
   if (tf->tf_cs == GD_KT) {
     print_trapframe(tf);

@@ -90,7 +90,7 @@ sys_exofork(void)
     return error;
   }
   newenv->env_status = ENV_NOT_RUNNABLE;
-  memcpy(&newenv->env_tf, &curenv->env_tf, sizeof(curenv->env_tf));
+  newenv->env_tf = curenv->env_tf;
   newenv->env_tf.tf_regs.reg_eax = 0;
   
   return newenv->env_id;
@@ -263,6 +263,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
   if ((error = page_insert(dstenv->env_pgdir, srcpage, dstva, perm)) < 0) {
     return error;
   }
+  // cprintf("sys_page_map: srcva: %p, dstva: %p\n",srcva, dstva);
   return 0;
 	// panic("sys_page_map not implemented");
 }

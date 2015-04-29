@@ -193,7 +193,7 @@ mem_init(void)
 	// Your code goes here:
   int pages_size = ROUNDUP(npages*sizeof(struct PageInfo), PGSIZE);
   boot_map_region(kern_pgdir, UPAGES, pages_size, PADDR(pages),
-      PTE_U);
+      PTE_U | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -524,6 +524,10 @@ int
 page_insert(pde_t *pgdir, struct PageInfo *pp, void *va, int perm)
 {
 	// Fill this function in
+  if (pp == NULL) {
+    cprintf("page_insert: pp == NULL");
+    return 0;
+  }
   pte_t* pte_addr = pgdir_walk(pgdir, va, true);
   pte_t newpte = PTE_ADDR(page2pa(pp)) | perm | PTE_P;
   if (pte_addr == NULL) {
@@ -683,6 +687,7 @@ user_mem_check(struct Env *env, const void *va, size_t len, int perm)
   pte_t* pte_ptr;
   for (cur_va = begin_va ; cur_va < end_va ; cur_va += PGSIZE) {
     pte_ptr = pgdir_walk(pgdir,(void*) cur_va, 0);
+//    cprintf("user_mem_check: va: %08x, vaperm: %08x\n", va, PGOFF(*pte_ptr));
     if ((uintptr_t)va >= ULIM || pte_ptr == NULL || (((perm|PTE_P) & *pte_ptr) != (perm|PTE_P))) {
       user_mem_check_addr = (cur_va < (uintptr_t)va)? (uintptr_t)va : cur_va;
       return -E_FAULT;

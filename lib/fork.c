@@ -25,6 +25,16 @@ pgfault(struct UTrapframe *utf)
 	//   (see <inc/memlayout.h>).
 
 	// LAB 4: Your code here.
+  if ((err & FEC_WR) == 0) {
+    cprintf("%08x\n", err);
+    panic("pgfault: error is not FEC_WR.");
+  }
+  pde_t pde = uvpd[PDX(addr)];
+  pde_t pte = uvpt[PGNUM(addr)];
+  if (!((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P)
+      && (uvpt[PGNUM(addr)] & PTE_COW))) {
+    panic("pgfault: page should be mapped PTE_COW.");
+  }
 
 	// Allocate a new page, map it at a temporary location (PFTEMP),
 	// copy the data from the old page to the new page, then move the new
@@ -33,8 +43,21 @@ pgfault(struct UTrapframe *utf)
 	//   You should make three system calls.
 
 	// LAB 4: Your code here.
-
-	panic("pgfault not implemented");
+  void* tmpva = (void*) ROUNDDOWN((uintptr_t) addr, PGSIZE);
+  int newperm = (uvpt[PGNUM(addr)] & PTE_SYSCALL & (~PTE_COW)) | PTE_W;
+  if ((r = sys_page_alloc(0, (void*)PFTEMP,
+                          newperm)) < 0) {
+    panic("pgfault: error %e\n", r);
+  }
+  memcpy((PFTEMP), tmpva, PGSIZE);
+  if ((r = sys_page_map(0, (void*)PFTEMP,
+                        0, tmpva, newperm)) < 0) {
+    panic("pgfault: error %e\n", r);
+  }
+  if ((r = sys_page_unmap(0, (void*)PFTEMP)) < 0)  {
+    panic("pgfault: error %e\n", r);
+  }
+//	panic("pgfault not implemented");
 }
 
 //
@@ -54,8 +77,24 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
+  int iscow = ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) ? PTE_COW : 0;
+  void* target_va = (void*)(pn*PGSIZE);
+  if ((r = sys_page_map(0, target_va,
+                        envid, target_va,
+                        (uvpt[pn] & PTE_SYSCALL & (~PTE_W)) | iscow)) < 0) {
+    return r;
+  }
+  // cprintf("map %x\n", *(int*)0xeebfdf08);
+  if (iscow) {
+    if ((r = sys_page_map(0, target_va,
+                          0, target_va,
+                          (uvpt[pn] & PTE_SYSCALL & (~PTE_W)) | iscow)) < 0) {
+      return r;
+    }
+  }
+  // cprintf("remap\n");
+  return 0;
 	panic("duppage not implemented");
-	return 0;
 }
 
 //
@@ -78,6 +117,36 @@ envid_t
 fork(void)
 {
 	// LAB 4: Your code here.
+  int r;
+  set_pgfault_handler(pgfault); //?
+  envid_t cid = sys_exofork();
+  cprintf("cid: %08x\n", cid);
+  if (cid == 0) {
+    // cprintf("heyyyyyyyyyyyyyy\n");
+    thisenv = &envs[ENVX(sys_getenvid())];
+    // set_pgfault_handler(pgfault); //?
+    return 0;
+  }
+  if (cid < 0) {
+    return cid;
+  }
+  int i;
+  for (i = 0 ; i < USTACKTOP ; i += PGSIZE) {
+    if ((uvpd[PDX(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_U)) {
+      duppage(cid, PGNUM(i));
+    }
+  }
+  extern void _pgfault_upcall(void);
+  if ((r = sys_env_set_pgfault_upcall(cid, _pgfault_upcall)) < 0) {
+    panic("sys_env_set_pgfault_upcall: error %e", r);
+  }
+  if ((r = sys_page_alloc(cid, (void*)(UXSTACKTOP - PGSIZE), PTE_P | PTE_U | PTE_W)) < 0) {
+    panic("sys_env_set_pgfault_upcall: alloc uxstack error %e", r);
+  }
+  if ((r = sys_env_set_status(cid, ENV_RUNNABLE)) < 0) {
+    panic("sys_env_set_status: error %e", r);
+  }
+  return cid;
 	panic("fork not implemented");
 }
 
