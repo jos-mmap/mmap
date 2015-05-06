@@ -40,7 +40,6 @@ sched_yield(void)
   }
 
   if (curenv && curenv->env_status == ENV_RUNNING) {
-      cprintf("env run\n");
     env_run(curenv);
   }
 	// sched_halt never returns

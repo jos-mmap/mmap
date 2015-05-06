@@ -336,6 +336,41 @@ static int
 sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 {
 	// LAB 4: Your code here.
+  int r;
+  struct Env* e;
+  if ((r = envid2env(envid, &e, 0)) < 0) {
+    return r;
+  }
+  if (!e->env_ipc_recving) {
+    return -E_IPC_NOT_RECV;
+  }
+  if (((uintptr_t)srcva < UTOP) && (uintptr_t)srcva != PTE_ADDR(srcva)) {
+    return -E_INVAL;
+  }
+  if (((uintptr_t)srcva < UTOP) &&
+      (((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) ||
+      (perm & (~PTE_SYSCALL)))) {
+    return -E_INVAL;
+  }
+  pte_t* pte = NULL;
+  page_lookup(curenv->env_pgdir, srcva, &pte);
+  if (((uintptr_t)srcva < UTOP) && pte == NULL) {
+    return -E_INVAL; 
+  }
+  if ((perm & PTE_W) && ((*pte) & PTE_W) == 0) {
+    return -E_INVAL;
+  }
+  if ((uintptr_t)srcva < UTOP) {
+    if ((uintptr_t)e->env_ipc_dstva < UTOP) {
+      sys_page_map(curenv->env_id, srcva, envid, e->env_ipc_dstva, perm);
+    }
+  }
+  e->env_ipc_recving = 0;
+  e->env_ipc_from = curenv->env_id;
+  e->env_ipc_value = value;
+  e->env_ipc_perm = perm;
+  e->env_status = ENV_RUNNABLE;
+  return 0;
 	panic("sys_ipc_try_send not implemented");
 }
 
@@ -354,6 +389,14 @@ static int
 sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
+  if ((uintptr_t)dstva < UTOP && (uintptr_t)dstva != PTE_ADDR(dstva)) {
+    return -E_INVAL;
+  }
+  curenv->env_ipc_dstva = dstva;
+  curenv->env_ipc_recving = true;
+  curenv->env_status = ENV_NOT_RUNNABLE;
+  curenv->env_tf.tf_regs.reg_eax = 0;
+  sched_yield();
 	panic("sys_ipc_recv not implemented");
 	return 0;
 }
@@ -397,6 +440,11 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_page_map((envid_t)a1, (void*)a2, (envid_t)a3, (void*)a4, (int)a5);
     case SYS_page_unmap:
       return sys_page_unmap((envid_t)a1, (void*)a2);
+    case SYS_ipc_try_send:
+      return sys_ipc_try_send((envid_t)a1, (uint32_t)a2,
+          (void*)a3, (unsigned)a4);
+    case SYS_ipc_recv:
+      return sys_ipc_recv((void*)a1);
     default:
       return -E_INVAL;
   };
