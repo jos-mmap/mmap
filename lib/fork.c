@@ -130,7 +130,7 @@ fork(void)
   if (cid < 0) {
     return cid;
   }
-  int i;
+  uintptr_t i;
   for (i = 0 ; i < USTACKTOP ; i += PGSIZE) {
     if ((uvpd[PDX(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_P) && (uvpt[PGNUM(i)] & PTE_U)) {
       duppage(cid, PGNUM(i));
