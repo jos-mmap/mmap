@@ -36,6 +36,9 @@ i386_init(void)
 
 	// Lab 2 memory management initialization functions
 	mem_init();
+  
+	// Test the stack backtrace function (lab 1 only)
+	// test_backtrace(5);
 
 	// Lab 3 user environment initialization functions
 	env_init();
@@ -50,6 +53,7 @@ i386_init(void)
 
 	// Acquire the big kernel lock before waking up APs
 	// Your code here:
+  lock_kernel();
 
 	// Starting non-boot CPUs
 	boot_aps();
@@ -123,8 +127,10 @@ mp_main(void)
 	//
 	// Your code here:
 
+  lock_kernel();
+  sched_yield();
+
 	// Remove this after you finish Exercise 4
-	for (;;);
 }
 
 /*
