@@ -68,7 +68,7 @@ alloc_block(void)
       uint32_t blockno = (i << 5) | j;
       if (block_is_free(blockno)) {
         bitmap[i] &= ~(1<<j);
-        flush_block(diskaddr(blockno/BLKBITSIZE + 2));
+        flush_block(diskaddr(blockno));
         return blockno;
       }
     }
@@ -121,6 +121,7 @@ fs_init(void)
 	// Set "super" to point to the super block.
 	super = diskaddr(1);
 	check_super();
+  cprintf("super->s_nblocks: %d\n", super->s_nblocks);
 
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
@@ -148,6 +149,25 @@ static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
        // LAB 5: Your code here.
+  int r;
+  if (filebno >= NDIRECT + NINDIRECT) {
+    return -E_INVAL;
+  }
+  if (filebno <= NDIRECT) {
+    *ppdiskbno = &f->f_direct[filebno];
+  } else {
+    *ppdiskbno = &f->f_indirect;
+    if (f->f_indirect == 0) {
+      if (!alloc) {
+        return -E_NOT_FOUND;
+      } else if ((r = alloc_block()) < 0) {
+        return r; 
+      } else {
+        f->f_indirect = r;
+      }
+    }
+  }
+  return 0;
        panic("file_block_walk not implemented");
 }
 
@@ -163,6 +183,21 @@ int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
        // LAB 5: Your code here.
+  int r;
+  uint32_t* ppdiskbno;
+  if (filebno >= NDIRECT + NINDIRECT) {
+    return -E_INVAL;
+  }
+  file_block_walk(f, filebno, &ppdiskbno, true);
+  if (*ppdiskbno == 0) {
+    if ((r = alloc_block()) < 0) {
+      return r;
+    } else {
+      *ppdiskbno = r;
+    }
+  }
+  *blk = (char*)diskaddr(*ppdiskbno);
+  return 0;
        panic("file_get_block not implemented");
 }
 
