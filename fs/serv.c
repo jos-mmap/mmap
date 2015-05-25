@@ -9,7 +9,7 @@
 #include "fs.h"
 
 
-#define debug 0
+#define debug 1
 
 // The file system server maintains three structures
 // for each open file.
@@ -214,7 +214,22 @@ serve_read(envid_t envid, union Fsipc *ipc)
 		cprintf("serve_read %08x %08x %08x\n", envid, req->req_fileid, req->req_n);
 
 	// Lab 5: Your code here:
-	return 0;
+  struct OpenFile *o;
+  int r;
+
+  if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0) {
+    return r;
+  }
+  if ((r = file_read(o->o_file, ret->ret_buf, req->req_n, o->o_fd->fd_offset)) <= 0) {
+    if (r == 0) {
+      return -E_INVAL;
+    }
+    return r;
+  }
+  cprintf("r: %d\n", r);
+  cprintf("ret->ret_buf: %s\n", ret->ret_buf);
+  o->o_fd->fd_offset += r;
+  return r;
 }
 
 
@@ -302,6 +317,7 @@ serve(void)
 	while (1) {
 		perm = 0;
 		req = ipc_recv((int32_t *) &whom, fsreq, &perm);
+    cprintf("fsreq: %08x\n");
 		if (debug)
 			cprintf("fs req %d from %08x [page %08x: %s]\n",
 				req, whom, uvpt[PGNUM(fsreq)], fsreq);

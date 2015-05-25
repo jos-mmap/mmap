@@ -25,7 +25,8 @@ fsipc(unsigned type, void *dstva)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
 
 	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
-	return ipc_recv(NULL, dstva, NULL);
+  int ipc_recv_res = ipc_recv(NULL, dstva, NULL);
+	return ipc_recv_res;
 }
 
 static int devfile_flush(struct Fd *fd);

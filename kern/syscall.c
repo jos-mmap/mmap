@@ -365,16 +365,18 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
     return -E_INVAL;
   }
   pte_t* pte = NULL;
-  page_lookup(curenv->env_pgdir, srcva, &pte);
-  if (((uintptr_t)srcva < UTOP) && pte == NULL) {
-    return -E_INVAL; 
-  }
-  if ((perm & PTE_W) && ((*pte) & PTE_W) == 0) {
-    return -E_INVAL;
-  }
+  struct PageInfo* page = page_lookup(curenv->env_pgdir, srcva, &pte);
   if ((uintptr_t)srcva < UTOP) {
+    if (pte == NULL) {
+      return -E_INVAL; 
+    }
+    if ((perm & PTE_W) && ((*pte) & PTE_W) == 0) {
+      return -E_INVAL;
+    }
     if ((uintptr_t)e->env_ipc_dstva < UTOP) {
-      sys_page_map(curenv->env_id, srcva, envid, e->env_ipc_dstva, perm);
+      if ((r = page_insert(e->env_pgdir, page, e->env_ipc_dstva, perm)) < 0) {
+        return r;
+      }
     }
   }
   e->env_ipc_recving = 0;
