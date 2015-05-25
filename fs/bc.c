@@ -48,6 +48,14 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
+  void* rounded_addr = ROUNDDOWN(addr, PGSIZE);
+  if ((r = sys_page_alloc(0, rounded_addr, PTE_U | PTE_W | PTE_P))) {
+    panic("in bc_pgfault, sys_page_alloc failed: %e", r);
+  }
+
+  if ((r = ide_read(blockno * BLKSECTS, rounded_addr, BLKSECTS))) {
+    panic("in bc_pgfault, ide_read failed: %e", r);
+  }
 
 	// Clear the dirty bit for the disk block page since we just read the
 	// block from disk
@@ -72,11 +80,22 @@ void
 flush_block(void *addr)
 {
 	uint32_t blockno = ((uint32_t)addr - DISKMAP) / BLKSIZE;
+	int r;
 
 	if (addr < (void*)DISKMAP || addr >= (void*)(DISKMAP + DISKSIZE))
 		panic("flush_block of bad va %08x", addr);
 
 	// LAB 5: Your code here.
+  if (!va_is_mapped(addr) || !va_is_dirty(addr)) {
+    return;
+  } 
+ 
+  void* rounded_addr = ROUNDDOWN(addr, PGSIZE);
+  ide_write(blockno * BLKSECTS, rounded_addr, BLKSECTS);
+	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
+		panic("in bc_pgfault, sys_page_map: %e", r);
+
+  return;
 	panic("flush_block not implemented");
 }
 
