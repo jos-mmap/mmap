@@ -77,19 +77,23 @@ duppage(envid_t envid, unsigned pn)
 	int r;
 
 	// LAB 4: Your code here.
-  int iscow = ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) ? PTE_COW : 0;
+  int iscow = ((uvpt[pn] & PTE_W) || (uvpt[pn] & PTE_COW)) && (!(uvpt[pn] & PTE_SHARE)) ? PTE_COW : 0;
   void* target_va = (void*)(pn*PGSIZE);
-  if ((r = sys_page_map(0, target_va,
-                        envid, target_va,
-                        (uvpt[pn] & PTE_SYSCALL & (~PTE_W)) | iscow)) < 0) {
-    return r;
-  }
-  // cprintf("map %x\n", *(int*)0xeebfdf08);
   if (iscow) {
+    if ((r = sys_page_map(0, target_va,
+                          envid, target_va,
+                          (uvpt[pn] & PTE_SYSCALL & (~PTE_W)) | iscow)) < 0) {
+      return r;
+    }
     if ((r = sys_page_map(0, target_va,
                           0, target_va,
                           (uvpt[pn] & PTE_SYSCALL & (~PTE_W)) | iscow)) < 0) {
       return r;
+    }
+  } else {
+    if ((r = sys_page_map(0, target_va, envid, target_va,
+                          (uvpt[pn] & PTE_SYSCALL))) < 0) {
+      return r; 
     }
   }
   // cprintf("remap\n");
