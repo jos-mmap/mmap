@@ -124,7 +124,6 @@ fork(void)
   int r;
   set_pgfault_handler(pgfault); //?
   envid_t cid = sys_exofork();
-  cprintf("lib/fork.c: cid: %08x\n", cid);
   if (cid == 0) {
     // cprintf("heyyyyyyyyyyyyyy\n");
     thisenv = &envs[ENVX(sys_getenvid())];
