@@ -153,19 +153,19 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
   if (filebno >= NDIRECT + NINDIRECT) {
     return -E_INVAL;
   }
-  if (filebno <= NDIRECT) {
+  if (filebno < NDIRECT) {
     *ppdiskbno = &f->f_direct[filebno];
   } else {
-    *ppdiskbno = &f->f_indirect;
     if (f->f_indirect == 0) {
       if (!alloc) {
         return -E_NOT_FOUND;
       } else if ((r = alloc_block()) < 0) {
         return r; 
-      } else {
-        f->f_indirect = r;
       }
+      f->f_indirect = r;
     }
+    uint32_t * pindirect_diskbno = diskaddr(f->f_indirect);
+    *ppdiskbno = &pindirect_diskbno[filebno - NDIRECT];
   }
   return 0;
        panic("file_block_walk not implemented");

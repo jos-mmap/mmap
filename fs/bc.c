@@ -48,12 +48,12 @@ bc_pgfault(struct UTrapframe *utf)
 	// the disk.
 	//
 	// LAB 5: you code here:
-  void* rounded_addr = ROUNDDOWN(addr, PGSIZE);
-  if ((r = sys_page_alloc(0, rounded_addr, PTE_U | PTE_W | PTE_P))) {
+  addr = ROUNDDOWN(addr, PGSIZE);
+  if ((r = sys_page_alloc(0, addr, PTE_U | PTE_W | PTE_P))) {
     panic("in bc_pgfault, sys_page_alloc failed: %e", r);
   }
 
-  if ((r = ide_read(blockno * BLKSECTS, rounded_addr, BLKSECTS))) {
+  if ((r = ide_read(blockno * BLKSECTS, addr, BLKSECTS))) {
     panic("in bc_pgfault, ide_read failed: %e", r);
   }
 
@@ -90,10 +90,10 @@ flush_block(void *addr)
     return;
   } 
  
-  void* rounded_addr = ROUNDDOWN(addr, PGSIZE);
-  ide_write(blockno * BLKSECTS, rounded_addr, BLKSECTS);
+  addr = ROUNDDOWN(addr, PGSIZE);
+  ide_write(blockno * BLKSECTS, addr, BLKSECTS);
 	if ((r = sys_page_map(0, addr, 0, addr, uvpt[PGNUM(addr)] & PTE_SYSCALL)) < 0)
-		panic("in bc_pgfault, sys_page_map: %e", r);
+		panic("in flush_block, sys_page_map: %e", r);
 
   return;
 	panic("flush_block not implemented");

@@ -251,6 +251,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
     return error;
   }
   if ((uintptr_t)srcva >= UTOP || (uintptr_t)srcva != PTE_ADDR(srcva)) {
+    cprintf("srcva: %08x\n", srcva);
     cprintf("srcva invalid\n");
     return -E_INVAL;
   }
