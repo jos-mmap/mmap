@@ -256,10 +256,16 @@ sys_page_map(envid_t srcenvid, void *srcva,
   int error;
   struct Env* srcenv;
   struct Env* dstenv;
-  if ((error = envid2env(srcenvid, &srcenv, 1)) < 0) {
+  bool checkperm;
+  if (curenv->env_type == ENV_TYPE_FS && (curenv->env_id == srcenvid || srcenvid == 0)) {
+    checkperm = 0;
+  } else {
+    checkperm = 1;
+  }
+  if ((error = envid2env(srcenvid, &srcenv, checkperm)) < 0) {
     return error;
   }
-  if ((error = envid2env(dstenvid, &dstenv, 1)) < 0) {
+  if ((error = envid2env(dstenvid, &dstenv, checkperm)) < 0) {
     return error;
   }
   if ((uintptr_t)srcva >= UTOP || (uintptr_t)srcva != PTE_ADDR(srcva)) {
@@ -428,6 +434,14 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+// TODO reserve consecutive virtual addresses
+// Returns the begin address on success.
+static int
+sys_page_reserve(void* addr, size_t length, int perm) {
+  cprintf("sys_page_reserve\n");
+  return (uintptr_t)addr;
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -474,6 +488,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_ipc_recv((void*)a1);
     case SYS_env_set_trapframe:
       return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+    case SYS_page_reserve:
+      return sys_page_reserve((void*)a1, (size_t)a2, (int)a3);
     default:
       return -E_INVAL;
   };

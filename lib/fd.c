@@ -320,3 +320,19 @@ stat(const char *path, struct Stat *stat)
 	return r;
 }
 
+int
+fdmmap(int fdnum, void *va, size_t len, off_t off, int perm)
+{
+  int r;
+  struct Dev *dev;
+  struct Fd *fd;
+
+  if ((r = fd_lookup(fdnum, &fd)) < 0
+      || (r = dev_lookup(fd->fd_dev_id, &dev)) < 0) {
+    return r;
+  }
+	if (!dev->dev_mmap)
+		return -E_NOT_SUPP;
+  return (*dev->dev_mmap)(fd, va, len, off, perm);
+}
+

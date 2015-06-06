@@ -57,6 +57,7 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
+void* sys_page_reserve(void* addr, size_t length, int perm);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
@@ -91,6 +92,19 @@ ssize_t	readn(int fd, void *buf, size_t nbytes);
 int	dup(int oldfd, int newfd);
 int	fstat(int fd, struct Stat *statbuf);
 int	stat(const char *path, struct Stat *statbuf);
+int fdmmap(int fdnum, void *va, size_t len, off_t off, int perm);
+
+// mmap.c
+
+#define PTE_COW 0x800
+
+#define MAP_PRIVATE 1
+#define MAP_SHARED 2
+#define PROT_EXEC 1
+#define PROT_READ 2
+#define PROT_WRITE 4
+#define PROT_NONE 8
+void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offset);
 
 // file.c
 int	open(const char *path, int mode);

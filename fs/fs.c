@@ -492,6 +492,45 @@ file_flush(struct File *f)
 		flush_block(diskaddr(f->f_indirect));
 }
 
+// mmap
+// Returns 0 on success, < 0 on error.
+int
+file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, int perm) {
+
+  int r, bn;
+  size_t aligned_len;
+
+	if (off >= f->f_size)
+		return -E_OFF_EXCEEDED;
+
+  assert(off % PGSIZE == 0);
+
+  void *endva = ROUNDUP(beginva + len, PGSIZE);
+  aligned_len = (size_t)(endva - beginva);
+  void *curva, *blk;
+  off_t pos = off;
+  for (curva = beginva ; curva < endva ;
+      curva += PGSIZE, pos += PGSIZE) {
+    if ((r = file_get_block(f, pos / BLKSIZE, (char**)&blk)) < 0) {
+      return r;
+    }
+    if (!va_is_mapped(blk)) {
+      cprintf("va is not mapped\n.");
+      if ((r = sys_page_alloc(0, blk, PTE_U | PTE_W | PTE_P)) < 0) {
+        panic("in file_mmap, sys_page_alloc failed: %e", r);
+      }
+      if ((r = ide_read(addr2blockno(blk) * BLKSECTS, blk, BLKSECTS))) {
+        panic("in file_mmap, ide_read failed: %e", r);
+      }
+    }
+    cprintf("va is now mapped\n.");
+    cprintf("curva %p envid %08x, perm %08x\n", curva, envid, perm);
+    if ((r = sys_page_map(0, blk, envid, curva, perm) < 0)) {
+      return r;
+    }
+  }
+  return 0;
+}
 
 // Sync the entire file system.  A big hammer.
 void

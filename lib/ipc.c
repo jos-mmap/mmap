@@ -30,8 +30,12 @@ ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
     r = sys_ipc_recv((void*)UTOP);
   }
   if (r) {
-    *from_env_store = 0;
-    *perm_store = 0;
+    if (from_env_store != NULL) {
+      *from_env_store = 0;
+    }
+    if (perm_store != NULL) {
+      *perm_store = 0;
+    }
     return r;
   }
   if (from_env_store != NULL) {

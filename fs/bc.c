@@ -1,6 +1,16 @@
 
 #include "fs.h"
 
+// Return the blocknum of this virtual address
+uint32_t
+addr2blockno(void* va)
+{
+  if ((uintptr_t)va % PGSIZE != 0) {
+    panic("addr2blockno: va not aligned.\n");
+  }
+  return ((uintptr_t)va - DISKMAP) / BLKSIZE;
+}
+
 // Return the virtual address of this disk block.
 void*
 diskaddr(uint32_t blockno)

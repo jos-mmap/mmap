@@ -117,3 +117,8 @@ sys_ipc_recv(void *dstva)
 	return syscall(SYS_ipc_recv, 1, (uint32_t)dstva, 0, 0, 0, 0);
 }
 
+void*
+sys_page_reserve(void* addr, size_t length, int perm) {
+  return (void*)syscall(SYS_page_reserve, 0, (uint32_t)addr,
+      length, (uint32_t)perm, 0, 0);
+}

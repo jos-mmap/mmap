@@ -302,6 +302,32 @@ serve_sync(envid_t envid, union Fsipc *req)
 	return 0;
 }
 
+int
+serve_mmap(envid_t envid, union Fsipc *ipc) {
+  struct OpenFile *o;
+  int r;
+  int perm;
+  void *beginva, *endva;
+  size_t len;
+  off_t off;
+  struct Fsreq_mmap *req = &ipc->mmap;
+
+  if (debug)
+    cprintf("serve_mmap %08x %08x\n", envid, req->req_fileid);
+
+  if ((r = openfile_lookup(envid, req->req_fileid, &o)) < 0) {
+    return r;
+  }
+  perm = req->req_perm;
+  beginva = req->req_va;
+  len = req->req_len;
+  off = req->req_off;
+  if ((r = file_mmap(o->o_file, envid, beginva, len, off, perm)) < 0) {
+    return r;
+  }
+  return 0;
+}
+
 typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 
 fshandler handlers[] = {
@@ -312,7 +338,8 @@ fshandler handlers[] = {
 	[FSREQ_FLUSH] =		(fshandler)serve_flush,
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_SET_SIZE] =	(fshandler)serve_set_size,
-	[FSREQ_SYNC] =		serve_sync
+	[FSREQ_SYNC] =		serve_sync,
+  [FSREQ_MMAP] =    serve_mmap
 };
 #define NHANDLERS (sizeof(handlers)/sizeof(handlers[0]))
 
