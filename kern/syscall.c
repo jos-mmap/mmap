@@ -437,8 +437,18 @@ sys_ipc_recv(void *dstva)
 // TODO reserve consecutive virtual addresses
 // Returns the begin address on success.
 static int
-sys_page_reserve(void* addr, size_t length, int perm) {
+sys_page_reserve(void* addr, size_t length, int perm, short mmapmd_id) {
   cprintf("sys_page_reserve\n");
+  // TODO do something like for addr to addr + length: page_insert(mmapmd_id << 12|perm);
+  pte_t* pte;
+  void* va;
+  for (va = addr ; va < addr + length ; va += PGSIZE) {
+    if ((pte = pgdir_walk(curenv->env_pgdir, va, 1)) == NULL) {
+      panic("sys_page_reserve: pte %e", E_NO_MEM);
+    }
+    *pte = mmapmd_id << PTXSHIFT | perm;
+  }
+  assert((uintptr_t)addr % PGSIZE == 0);
   return (uintptr_t)addr;
 }
 
@@ -489,7 +499,7 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
     case SYS_env_set_trapframe:
       return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
     case SYS_page_reserve:
-      return sys_page_reserve((void*)a1, (size_t)a2, (int)a3);
+      return sys_page_reserve((void*)a1, (size_t)a2, (int)a3, (int)a4);
     default:
       return -E_INVAL;
   };

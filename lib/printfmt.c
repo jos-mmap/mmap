@@ -36,6 +36,7 @@ static const char * const error_string[MAXERROR] =
 	[E_NOT_EXEC]	= "file is not a valid executable",
 	[E_NOT_SUPP]	= "operation not supported",
   [E_OFF_EXCEEDED] = "offset exceeds the file size",
+  [E_NO_MMAPMD] = "out of free mmap metadata",
 };
 
 /*

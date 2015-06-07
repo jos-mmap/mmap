@@ -20,6 +20,7 @@
 #include <inc/fs.h>
 #include <inc/fd.h>
 #include <inc/args.h>
+#include <inc/mmap.h>
 
 #define USED(x)		(void)(x)
 
@@ -31,6 +32,9 @@ extern const char *binaryname;
 extern const volatile struct Env *thisenv;
 extern const volatile struct Env envs[NENV];
 extern const volatile struct PageInfo pages[];
+
+#define MAXMD 32
+extern struct mmap_metadata mmap_md[MAXMD];
 
 // exit.c
 void	exit(void);
@@ -57,7 +61,7 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
-void* sys_page_reserve(void* addr, size_t length, int perm);
+void* sys_page_reserve(void* addr, size_t length, int perm, int mmapmdid);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
@@ -104,6 +108,11 @@ int fdmmap(int fdnum, void *va, size_t len, off_t off, int perm);
 #define PROT_READ 2
 #define PROT_WRITE 4
 #define PROT_NONE 8
+
+void mmap_pgfault(struct UTrapframe *utf);
+void mmapmd_init();
+int mmapmd_alloc();
+void mmapmd_destroy(int id);
 void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offset);
 
 // file.c

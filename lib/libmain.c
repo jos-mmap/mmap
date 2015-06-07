@@ -7,6 +7,7 @@ extern void umain(int argc, char **argv);
 
 const volatile struct Env *thisenv;
 const char *binaryname = "<unknown>";
+struct mmap_metadata mmap_md[MAXMD];
 
 void
 libmain(int argc, char **argv)
@@ -19,6 +20,9 @@ libmain(int argc, char **argv)
 	if (argc > 0)
 		binaryname = argv[0];
 
+  mmapmd_init();
+
+  set_pgfault_handler(mmap_pgfault);
 	// call user main routine
 	umain(argc, argv);
 

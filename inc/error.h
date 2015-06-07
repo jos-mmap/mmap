@@ -26,6 +26,7 @@ enum {
 	E_NOT_EXEC	,	// File not a valid executable
 	E_NOT_SUPP	,	// Operation not supported
   E_OFF_EXCEEDED, // Offset exceeds the file size
+  E_NO_MMAPMD, // Out of free mmap metadata
 
 	MAXERROR
 };

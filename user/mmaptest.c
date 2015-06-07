@@ -2,7 +2,7 @@
 #include <inc/lib.h>
 
 static void
-mmap_pgfault(struct UTrapframe *utf) {
+mmap_pgfault_s(struct UTrapframe *utf) {
 
 	void *addr = (void *) utf->utf_fault_va;
 	uint32_t err = utf->utf_err;
@@ -39,7 +39,7 @@ void
 umain(int argc, char **argv)
 {
 
-  set_pgfault_handler(mmap_pgfault); //?
+//   set_pgfault_handler(mmap_pgfault); //?
   int r, i, j, fd;
   char buf[512];
 
