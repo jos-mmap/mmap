@@ -122,3 +122,9 @@ sys_page_reserve(void* addr, size_t length, int perm, int mmmdid) {
   return (void*)syscall(SYS_page_reserve, 0, (uint32_t)addr,
       length, (uint32_t)perm, (uint32_t)mmmdid, 0);
 }
+
+unsigned int
+sys_time_msec(void)
+{
+	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
+}

@@ -328,6 +328,10 @@ serve_mmap(envid_t envid, union Fsipc *ipc) {
   return 0;
 }
 
+int
+serve_print_fs_stat(envid_t envid, union Fsipc *ipc) ;
+
+
 typedef int (*fshandler)(envid_t envid, union Fsipc *req);
 
 fshandler handlers[] = {
@@ -339,9 +343,46 @@ fshandler handlers[] = {
 	[FSREQ_WRITE] =		(fshandler)serve_write,
 	[FSREQ_SET_SIZE] =	(fshandler)serve_set_size,
 	[FSREQ_SYNC] =		serve_sync,
-  [FSREQ_MMAP] =    serve_mmap
+  [FSREQ_MMAP] =    serve_mmap,
+  [FSREQ_PRINT_FS_STAT] = serve_print_fs_stat,
 };
 #define NHANDLERS (sizeof(handlers)/sizeof(handlers[0]))
+
+char req_name[NHANDLERS][20] = {
+  [FSREQ_OPEN] =	"serve_open\t",
+	[FSREQ_READ] =		"serve_read\t",
+	[FSREQ_STAT] =		"serve_stat\t",
+	[FSREQ_FLUSH] =		"serve_flush\t",
+	[FSREQ_WRITE] =		"serve_write\t",
+	[FSREQ_SET_SIZE] =	"serve_set_size\t",
+	[FSREQ_SYNC] =		"serve_sync\t",
+  [FSREQ_MMAP] =    "serve_mmap\t",
+  [FSREQ_PRINT_FS_STAT] = "serve_print_fs_stat",
+};
+
+int fs_req_count[NHANDLERS] = {0};
+
+int log_req(envid_t envid, int req)
+{
+	if (req < NHANDLERS && req >= 0)
+		fs_req_count[req]++;
+	return 0;
+}
+
+int
+serve_print_fs_stat(envid_t envid, union Fsipc *ipc) {
+	cprintf("Hello from print file system handlers\n");
+
+	cprintf("===============\n");
+	int i;
+	for (i = 1; i < NHANDLERS; ++i) {
+		if (*req_name[i])
+			cprintf("%s\t%4d\n", req_name[i], fs_req_count[i]);
+	}
+	cprintf("===============\n");
+
+	return 0;
+}
 
 void
 serve(void)
@@ -363,6 +404,8 @@ serve(void)
 				whom);
 			continue; // just leave it hanging...
 		}
+
+		log_req(whom, req);
 
 		pg = NULL;
 		if (req == FSREQ_OPEN) {

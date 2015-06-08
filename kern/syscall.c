@@ -11,6 +11,7 @@
 #include <kern/syscall.h>
 #include <kern/console.h>
 #include <kern/sched.h>
+#include <kern/time.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -452,6 +453,15 @@ sys_page_reserve(void* addr, size_t length, int perm, short mmapmd_id) {
   return (uintptr_t)addr;
 }
 
+
+static int
+sys_time_msec(void)
+{
+  // LAB 6: Your code here.
+  return time_msec();
+  // panic("sys_time_msec not implemented");
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -500,6 +510,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
     case SYS_page_reserve:
       return sys_page_reserve((void*)a1, (size_t)a2, (int)a3, (int)a4);
+    case SYS_time_msec:
+      return sys_time_msec();
     default:
       return -E_INVAL;
   };
