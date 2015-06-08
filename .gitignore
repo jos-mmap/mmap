@@ -17,3 +17,5 @@
 /myapi.key
 .suf
 *.swp
+
+.DS_Store
