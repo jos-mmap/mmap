@@ -85,7 +85,7 @@ umain(int argc, char **argv)
   cprintf("fd: %d\n", fd);
   int* addr_shared = (int*)mmap((void*)0xeebfd000 - 2*PGSIZE, PGSIZE, PROT_WRITE, MAP_SHARED, fd, 0);
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
-    cprintf("addr_shared %d\n", addr_shared[i]);
+    //cprintf("addr_shared %d\n", addr_shared[i]);
     addr_shared[i] = 0x01010101;
   }
   close(fd);

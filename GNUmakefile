@@ -4,7 +4,7 @@
 #
 #	Recursive Make Considered Harmful
 #	http://aegis.sourceforge.net/auug97.pdf
-#
+
 OBJDIR := obj
 
 # Run 'make V=1' to turn on verbose commands, or 'make V=0' to turn them off.
@@ -66,14 +66,13 @@ endif
 # try to generate a unique GDB port
 GDBPORT	:= $(shell expr `id -u` % 5000 + 25000)
 
-CC	:= $(GCCPREFIX)gcc -pipe
-AS	:= $(GCCPREFIX)as
-AR	:= $(GCCPREFIX)ar
-LD	:= $(GCCPREFIX)ld
-OBJCOPY	:= $(GCCPREFIX)objcopy
-OBJDUMP	:= $(GCCPREFIX)objdump
-NM	:= $(GCCPREFIX)nm
-
+CC	:= i386-jos-elf-gcc -pipe
+AS	:= i386-jos-elf-as
+AR	:= i386-jos-elf-ar
+LD	:= i386-jos-elf-ld
+OBJCOPY	:= i386-jos-elf-objcopy
+OBJDUMP	:= i386-jos-elf-objdump
+NM	:= i386-jos-elf-nm
 # Native commands
 NCC	:= gcc $(CC_VER) -pipe
 NATIVE_CFLAGS := $(CFLAGS) $(DEFS) $(LABDEFS) -I$(TOP) -MD -Wall
@@ -151,10 +150,10 @@ IMAGES += $(OBJDIR)/fs/fs.img
 QEMUOPTS += $(QEMUEXTRA)
 
 .gdbinit: .gdbinit.tmpl
-	sed "s/localhost:1234/localhost:$(GDBPORT)/" < $^ > $@
+	sed "s/localhost:1234/127.0.0.1:$(GDBPORT)/" < $^ > $@
 
 gdb:
-	gdb -x .gdbinit
+	i386-jos-elf-gdb -x .gdbinit
 
 pre-qemu: .gdbinit
 
