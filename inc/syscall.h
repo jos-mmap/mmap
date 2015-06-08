@@ -18,6 +18,7 @@ enum {
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
   SYS_page_reserve,
+	SYS_time_msec,
 	NSYSCALLS
 };
 

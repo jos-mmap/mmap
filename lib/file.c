@@ -202,3 +202,10 @@ sync(void)
 	return fsipc(FSREQ_SYNC, NULL);
 }
 
+
+// Ask file system environment to print something...
+int 
+print_fs_stat()
+{
+	return fsipc(FSREQ_PRINT_FS_STAT, NULL);
+}

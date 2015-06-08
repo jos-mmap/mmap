@@ -62,6 +62,7 @@ int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
 void* sys_page_reserve(void* addr, size_t length, int perm, int mmapmdid);
+unsigned int sys_time_msec(void);
 
 // This must be inlined.  Exercise for reader: why?
 static __inline envid_t __attribute__((always_inline))
@@ -120,6 +121,7 @@ int	open(const char *path, int mode);
 int	ftruncate(int fd, off_t size);
 int	remove(const char *path);
 int	sync(void);
+int print_fs_stat();
 
 // pageref.c
 int	pageref(void *addr);

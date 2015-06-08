@@ -71,7 +71,8 @@ enum {
 	FSREQ_FLUSH,
 	FSREQ_REMOVE,
 	FSREQ_SYNC,
-  FSREQ_MMAP
+  FSREQ_MMAP,
+  FSREQ_PRINT_FS_STAT,
 };
 
 union Fsipc {

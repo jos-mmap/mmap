@@ -38,6 +38,9 @@ KERN_SRCFILES +=	kern/mpentry.S \
 			kern/lapic.c \
 			kern/spinlock.c
 
+# Source files for mmap
+KERN_SRCFILES += kern/time.c
+
 # Only build files if they exist.
 KERN_SRCFILES := $(wildcard $(KERN_SRCFILES))
 
@@ -93,7 +96,8 @@ KERN_BINFILES +=	user/testpteshare \
 			user/testshell
 
 # Binary files for mmap
-KERN_BINFILES += user/mmaptest
+KERN_BINFILES += user/mmaptest \
+			user/benchmark
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

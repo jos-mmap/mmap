@@ -13,6 +13,7 @@
 #include <kern/picirq.h>
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
+#include <kern/time.h>
 
 static struct Taskstate ts;
 
@@ -229,6 +230,7 @@ trap_dispatch(struct Trapframe *tf)
 	// LAB 4: Your code here.
   if (tf->tf_trapno == IRQ_OFFSET + IRQ_TIMER) {
     lapic_eoi();
+    time_tick();
     sched_yield();
   }
 
