@@ -525,7 +525,7 @@ file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, i
     }
     //cprintf("va is now mapped\n.");
     //cprintf("curva %p envid %08x, perm %08x\n", curva, envid, perm);
-    if ((r = sys_page_map(0, blk, envid, curva, perm) < 0)) {
+    if ((r = sys_page_map(0, blk, envid, curva, perm)) < 0) {
       return r;
     }
   }

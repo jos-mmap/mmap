@@ -58,7 +58,8 @@ umain(int argc, char **argv)
 	if ((fd = open("/testmmap", O_WRONLY|O_CREAT)) < 0)
 		panic("creat /testmmap: %e", fd);
   cprintf("fd: %d\n", fd);
-  int* addr_private = (int*)mmap((void*)0xeebfd000 - PGSIZE, PGSIZE, PROT_WRITE, MAP_PRIVATE, fd, 0);
+  int* addr_private = (int*)mmap((void*)USTACKTOP - 2*PGSIZE, PGSIZE, PROT_WRITE, MAP_PRIVATE, fd, 0);
+  cprintf("mmap return in user\n");
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
     cprintf("addr_private %d\n", addr_private[i]);
     addr_private[i] = 0x01010101;
@@ -83,7 +84,7 @@ umain(int argc, char **argv)
 	if ((fd = open("/testmmap", O_WRONLY|O_CREAT)) < 0)
 		panic("creat /testmmap: %e", fd);
   cprintf("fd: %d\n", fd);
-  int* addr_shared = (int*)mmap((void*)0xeebfd000 - 2*PGSIZE, PGSIZE, PROT_WRITE, MAP_SHARED, fd, 0);
+  int* addr_shared = (int*)mmap((void*)USTACKTOP - 3*PGSIZE, PGSIZE, PROT_WRITE, MAP_SHARED, fd, 0);
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
     cprintf("addr_shared %d\n", addr_shared[i]);
     addr_shared[i] = 0x01010101;
