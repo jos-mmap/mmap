@@ -275,7 +275,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
     return -E_INVAL;
   }
   if ((uintptr_t)dstva >= UTOP || (uintptr_t)dstva != PTE_ADDR(dstva)) {
-    cprintf("dstva invalid\n");
+    //cprintf("dstva invalid\n");
     return -E_INVAL;
   }
   if (((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) ||
@@ -462,6 +462,11 @@ sys_time_msec(void)
   // panic("sys_time_msec not implemented");
 }
 
+static int
+sys_bd_sys_start(int va, int size) {
+  return bd_sys_start(va, size);
+}
+
 // Dispatches to the correct kernel function, passing the arguments.
 int32_t
 syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
@@ -512,6 +517,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_page_reserve((void*)a1, (size_t)a2, (int)a3, (int)a4);
     case SYS_time_msec:
       return sys_time_msec();
+    case SYS_bd_sys_start:
+      return sys_bd_sys_start(a1, a2);
     default:
       return -E_INVAL;
   };

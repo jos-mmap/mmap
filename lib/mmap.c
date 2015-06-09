@@ -2,6 +2,14 @@
 
 #include <inc/lib.h>
 
+
+// these 2 values will be used in user space
+// feel free to modify them if you want to add more space to the buddy system
+#define MAX_BD_SYS_SHIFT 22
+#define MAX_BD_SYS_SIZE (1<<(MAX_BD_SYS_SHIFT))
+
+int bd_sys_size = 0; // haven't been initialized
+
 void
 mmap_pgfault(struct UTrapframe *utf) {
   void *addr = (void *) utf->utf_fault_va;
@@ -91,6 +99,15 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
   cprintf("enter mmap: addr %p, length %u, prot %d, "
       "flags %d, fdnum %d, offset %u\n", addr, length, prot,
       flags, fdnum, offset);
+
+  // first of all, here to start the mmap system(or I'd rather say, the buddy system)
+  if ((bd_sys_size = sys_bd_sys_start(UTEXT, MAX_BD_SYS_SIZE)) < 0) {
+    // if the return value is less than 0, it means:
+    // 1. there's no enough space for a buddy system with size MAX_BD_SIZE
+    // 2. others I don't know
+    // note that this function will return the size the bd system really allocated
+    panic("buddy system initialization failed.");
+  }
 
   // sanity check for offset, which must be a multiple of the page size.
   if ((offset % PGSIZE) != 0) return (void *)-E_INVAL;

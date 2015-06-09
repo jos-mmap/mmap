@@ -112,8 +112,11 @@
 #define UVPT		(ULIM - PTSIZE)
 // Read-only copies of the Page structures
 #define UPAGES		(UVPT - PTSIZE)
+
+#define UBDSYS		(UPAGES - PTSIZE)
+
 // Read-only copies of the global env structures
-#define UENVS		(UPAGES - PTSIZE)
+#define UENVS		(UBDSYS - PTSIZE)
 
 /*
  * Top of user VM. User can manipulate VA from UTOP-1 and down!

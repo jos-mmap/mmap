@@ -128,3 +128,9 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+int 
+sys_bd_sys_start(uint32_t va, int size)
+{
+	return (int) syscall(SYS_bd_sys_start, 0, va, size, 0, 0, 0);
+}

@@ -11,7 +11,8 @@ struct mmap_metadata mmap_md[MAXMD];
 
 void
 libmain(int argc, char **argv)
-{
+{	
+	cprintf("This is libmain...\n");
 	// set thisenv to point at our Env structure in envs[].
 	// LAB 3: Your code here.
 	thisenv = (struct Env*)envs + ENVX(sys_getenvid());
@@ -20,9 +21,9 @@ libmain(int argc, char **argv)
 	if (argc > 0)
 		binaryname = argv[0];
 
-  mmapmd_init();
+  	mmapmd_init();
 
-  set_pgfault_handler(mmap_pgfault);
+  	set_pgfault_handler(mmap_pgfault);
 	// call user main routine
 	umain(argc, argv);
 

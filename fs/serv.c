@@ -387,6 +387,7 @@ serve_print_fs_stat(envid_t envid, union Fsipc *ipc) {
 void
 serve(void)
 {
+	cprintf("serving...\n");
 	uint32_t req, whom;
 	int perm, r;
 	void *pg;

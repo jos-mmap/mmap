@@ -515,7 +515,7 @@ file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, i
       return r;
     }
     if (!va_is_mapped(blk)) {
-      cprintf("va is not mapped\n.");
+      //cprintf("va is not mapped\n.");
       if ((r = sys_page_alloc(0, blk, PTE_U | PTE_W | PTE_P)) < 0) {
         panic("in file_mmap, sys_page_alloc failed: %e", r);
       }
@@ -523,8 +523,8 @@ file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, i
         panic("in file_mmap, ide_read failed: %e", r);
       }
     }
-    cprintf("va is now mapped\n.");
-    cprintf("curva %p envid %08x, perm %08x\n", curva, envid, perm);
+    //cprintf("va is now mapped\n.");
+    //cprintf("curva %p envid %08x, perm %08x\n", curva, envid, perm);
     if ((r = sys_page_map(0, blk, envid, curva, perm) < 0)) {
       return r;
     }

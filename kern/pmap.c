@@ -19,7 +19,17 @@ static size_t npages_basemem;	// Amount of base memory (in pages)
 pde_t *kern_pgdir;		// Kernel's initial page directory
 struct PageInfo *pages;		// Physical page state array
 static struct PageInfo *page_free_list;	// Free list of physical pages
+struct MemoryBlock *bd_sys_memblocks; // linked list for memory block
+static struct MemoryBlock *bd_sys_free_list;
+static struct MemoryBlock *bd_sys_binary [MAX_BD_ORDER+1];
+static int bd_sys_build = false;
 
+
+uint32_t bd_sys_start_va 	= BD_START_VA;
+int bd_sys_size	 			= MAX_BD_SIZE;
+int bd_sys_shift			= MAX_BD_SHIFT;
+int bd_sys_max_order 		= MAX_BD_ORDER;
+int bd_sys_max_nodes		= MAX_BD_NODES;
 
 // --------------------------------------------------------------
 // Detect machine's physical memory setup.
@@ -156,19 +166,23 @@ mem_init(void)
 	// array.  'npages' is the number of physical pages in memory.  Use memset
 	// to initialize all fields of each struct PageInfo to 0.
 	// Your code goes here:
-  pages = (struct PageInfo*) boot_alloc(npages * sizeof(struct PageInfo));
-  cprintf("mem_init: sizeof(struct PageInfo): %x, npages: %d pages: %p\n", npages * sizeof(struct PageInfo), npages, pages);
-  // Can I write sizeof(pages)?
-  cprintf("mem_init: pages: 0x%08x\n", page2kva(pages));
-  memset(pages, 0, npages * sizeof(struct PageInfo));
-  cprintf("mem_init: allocate an array of npages.\n");
-
+  	pages = (struct PageInfo*) boot_alloc(npages * sizeof(struct PageInfo));
+  	cprintf("mem_init: sizeof(struct PageInfo): %x, npages: %d pages: %p\n", npages * sizeof(struct PageInfo), npages, pages);
+  	// Can I write sizeof(pages)?
+  	cprintf("mem_init: pages: 0x%08x\n", page2kva(pages));
+  	memset(pages, 0, npages * sizeof(struct PageInfo));
+  	cprintf("mem_init: allocate an array of npages.\n");
+	
 	//////////////////////////////////////////////////////////////////////
 	// Make 'envs' point to an array of size 'NENV' of 'struct Env'.
 	// LAB 3: Your code here.
-  envs = (struct Env*) boot_alloc(NENV * sizeof(struct Env));
-  memset(envs, 0, NENV * sizeof(struct Env));
+  	envs = (struct Env*) boot_alloc(NENV * sizeof(struct Env));
+  	memset(envs, 0, NENV * sizeof(struct Env));
 
+
+  	bd_sys_memblocks = (struct MemoryBlock *) boot_alloc(MAX_BD_NODES * sizeof(struct MemoryBlock));
+  	cprintf("initialized the buddy system binary tree.\n");
+  	memset(bd_sys_memblocks, 0, (MAX_BD_NODES) * sizeof(struct MemoryBlock));
 	//////////////////////////////////////////////////////////////////////
 	// Now that we've allocated the initial kernel data structures, we set
 	// up the list of free physical pages. Once we've done so, all further
@@ -227,8 +241,11 @@ mem_init(void)
 	// we just set up the mapping anyway.
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
-  boot_map_region(kern_pgdir, KERNBASE, (1ll<<32) - KERNBASE, 0, PTE_W | PTE_P);
+  	boot_map_region(kern_pgdir, KERNBASE, (1ll<<32) - KERNBASE, 0, PTE_W | PTE_P);
 
+  	int bd_sys_size = ROUNDUP(MAX_BD_NODES * sizeof(struct MemoryBlock), PGSIZE);
+  	cprintf("buddy system size: %d and PTSIZE is: %d at 0x%08x\n", bd_sys_size, PTSIZE, UBDSYS);
+  	boot_map_region(kern_pgdir, UBDSYS, bd_sys_size, PADDR(bd_sys_memblocks), PTE_W | PTE_P);
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
 
@@ -285,6 +302,207 @@ mem_init_mp(void)
         KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_P | PTE_W);
   }
 }
+
+struct MemoryBlock* bd_sys_alloc(uint32_t va, int size) {
+	cprintf("allocating new memory block: va 0x%08x size %d\n", va, size);
+	if (bd_sys_free_list == NULL) {
+		panic("no free memory block for allocation");
+	}
+	struct MemoryBlock *ret = bd_sys_free_list;
+	bd_sys_free_list = ret->free_next;
+	return ret;
+}
+
+int bd_sys_free(struct MemoryBlock* memblock) {
+	if (bd_sys_free_list == NULL) {
+		bd_sys_free_list = memblock;
+	}
+	else {
+		bd_sys_free_list->free_next = memblock;
+		memblock->va = 0;
+		memblock->size = 0;
+		memblock->next = 0;
+		memblock->free_next = NULL;
+		bd_sys_free_list = memblock;
+	}
+	return 0;
+}
+
+int bd_sys_get_order(int size) {
+	int shift;
+	if (size > bd_sys_size) {
+		panic("request size larger than the bsys could handle.\n");
+	}
+	for (shift = bd_sys_shift; !((size>>shift)&1) && shift >= 0; shift --)
+		; // get the left most bit
+	if (shift < PGSHIFT) {
+		panic("size smaller than the smallest granularity");
+	}
+	if (size&((1<<shift)-1)) 
+		shift++;
+	return shift - PGSHIFT;
+}
+
+int bd_sys_append_block(int order, struct MemoryBlock *memblock) {
+	cprintf("append order %d with va 0x%08x\n", order, memblock->va);
+	struct MemoryBlock* tmp;
+	struct MemoryBlock* freeptr = bd_sys_binary[order];
+	if (freeptr == NULL)
+		bd_sys_binary[order] = memblock;
+	else {
+		while (freeptr->next != NULL) 
+			freeptr = freeptr->next;
+		freeptr->next = memblock;
+	}
+	// check whether there're existing buddy
+	bool checked = true;
+	while (checked) {
+		checked = false;
+		for (tmp = bd_sys_binary[order]; tmp->next != NULL; tmp = tmp->next) {
+			if (tmp->va + tmp->size == (tmp->next)->va) {
+				// found 2 neighbours!
+				cprintf("coalescing 2 buddy blocks: 0x%08x 0x%08x\n", 
+					tmp->va, (tmp->next)->va);
+				struct MemoryBlock* newtmp = bd_sys_alloc(tmp->va, (tmp->size)<<1);
+				bd_sys_append_block(order+1, newtmp);
+				bd_sys_free(tmp->next);
+				bd_sys_free(tmp);
+				checked = true;
+				break;
+			}
+		}
+	}
+	return 0;
+}
+
+int bd_sys_split(int order) {
+	cprintf("split at order: %d\n", order);
+	if (order == bd_sys_max_order+1) {
+		// can't split more, just quit
+		return -1;
+	}
+	if (order == 0) {
+		panic("error order\n");
+	}
+	int r;
+	// do the split work
+	// if there's a existing memblock in the current order
+	struct MemoryBlock *memblock = bd_sys_binary[order];
+	// just split it!
+	if (memblock != NULL) {
+		cprintf("split at va %x size %d\n", memblock->va, ORDER2SIZE(order));
+		bd_sys_binary[order] = memblock->next; // freed
+		struct MemoryBlock *l_block = bd_sys_alloc(memblock->va, ORDER2SIZE(order-1));
+		struct MemoryBlock *r_block = bd_sys_alloc(memblock->va + ORDER2SIZE(order-1), ORDER2SIZE(order-1));
+		cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
+		bd_sys_append_block(order-1, l_block);
+		bd_sys_append_block(order-1, r_block);
+		return 0;
+	}
+	// or try the upper level
+	if ((r = bd_sys_split(order + 1)) < 0) {
+		return r;
+	}
+	// second pass
+	memblock = bd_sys_binary[order];
+	// just split it!
+	if (memblock != NULL) {
+		cprintf("split second try at va %x size %d\n", memblock->va, ORDER2SIZE(order));
+		bd_sys_binary[order] = memblock->next; // freed
+		struct MemoryBlock *l_block = bd_sys_alloc(memblock->va, ORDER2SIZE(order-1));
+		struct MemoryBlock *r_block = bd_sys_alloc(memblock->va + ORDER2SIZE(order-1), ORDER2SIZE(order-1));
+		cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
+		bd_sys_append_block(order-1, l_block);
+		bd_sys_append_block(order-1, r_block);
+		return 0;
+	}
+	// I give up.
+	return -1;
+}
+
+
+
+int bd_sys_start(uint32_t va, int size) {
+	if (bd_sys_build == true)
+		return 0;
+	int i = 0;
+	uint32_t tmp_va;
+
+	cprintf("Hello World, this is buddy system start.\\m/\n");
+	cprintf("We want to build our buddy system at va 0x%08x with size %d\n",
+		va, size);
+
+	// do some dummy check
+	if ((va & (PGSIZE-1))) {
+		panic("va should be aligned to PGSIZE\n");
+	}
+	bd_sys_start_va = va;
+	// and the size should be equal to an order of 2
+	// and aligned to PGSIZE
+	for (bd_sys_shift = 0; bd_sys_shift <= MAX_BD_SHIFT && 
+			!((size>>bd_sys_shift)&1); bd_sys_shift++);
+	if (bd_sys_shift < PGSHIFT || (size>>(bd_sys_shift+1))) {
+		cprintf("bd sys shift: %d %d\n", bd_sys_shift, size>>(bd_sys_shift+1));
+		panic("bd sys size is not aligned to PGSIZE, or it's not an order of 2\n");
+	}
+
+	assert(va >= UTEXT && va + size < UTOP);
+	bd_sys_size = (1<<bd_sys_shift);
+	bd_sys_max_order = bd_sys_shift-PGSHIFT;
+	bd_sys_max_nodes = (1<<(bd_sys_max_order+1))-1;
+	cprintf("shift: %d, max order: %d\n", bd_sys_shift, bd_sys_max_order);
+
+	// initialize the linked list
+	for (i = 0; i <= bd_sys_max_order; i++)
+		bd_sys_binary[i] = NULL;
+
+	bd_sys_free_list = &bd_sys_memblocks[0];
+	for (i = 1; i < bd_sys_max_nodes; i++) {
+		bd_sys_memblocks[i-1].free_next = &bd_sys_memblocks[i];
+	}
+
+	// new memory block
+	struct MemoryBlock *memblock = bd_sys_alloc(bd_sys_start_va, (1<<bd_sys_max_order));
+
+	//cprintf("max layer %d\n", bd_sys_max_order);
+	bd_sys_binary[bd_sys_max_order] = memblock;
+
+	bd_sys_build = true;
+	return bd_sys_size;
+}
+
+// this method return the space it could allocate, 
+// at the same time, it will also modify the global binary tree
+int bd_sys_alloc_blocks(int size, struct MemoryBlock** memblock) {
+	int r;
+	int order = bd_sys_get_order(size);
+	cprintf("size %d -> order %d\n", size, order);
+	if (bd_sys_binary[order] == NULL) {
+		// now we should try to split the upper order
+		if ((r = bd_sys_split(order+1)) < 0) 
+			return -1;
+	}
+	// here we must have a block
+	*memblock = bd_sys_binary[order];
+	cprintf("could allocate a block with order %d: 0x%08x\n", order, (*memblock)->va);
+	assert(*memblock != NULL);
+	bd_sys_binary[order] = (*memblock)->next;
+	return 0;
+}
+
+int bd_sys_free_blocks(struct MemoryBlock *memblock) {
+	if (memblock == NULL) {
+		panic("freeing NULL memblock");
+	}
+	uint32_t va = memblock->va;
+	int size = memblock->size;
+	int order = bd_sys_get_order(size);
+	// append the freed block
+	bd_sys_append_block(order, memblock);
+	cprintf("freed an order %d block\n", order);
+	return 0;
+}
+
 
 // --------------------------------------------------------------
 // Tracking of physical pages.
@@ -905,6 +1123,7 @@ check_kern_pgdir(void)
 		case PDX(KSTACKTOP-1):
 		case PDX(UPAGES):
 		case PDX(UENVS):
+		case PDX(UBDSYS):
 		case PDX(MMIOBASE):
 			assert(pgdir[i] & PTE_P);
 			break;
@@ -912,8 +1131,9 @@ check_kern_pgdir(void)
 			if (i >= PDX(KERNBASE)) {
 				assert(pgdir[i] & PTE_P);
 				assert(pgdir[i] & PTE_W);
-			} else
+			} else {
 				assert(pgdir[i] == 0);
+			}
 			break;
 		}
 	}
@@ -1162,3 +1382,5 @@ check_page_installed_pgdir(void)
 
 	cprintf("check_page_installed_pgdir() succeeded!\n");
 }
+
+

@@ -17,8 +17,9 @@ enum {
 	SYS_yield,
 	SYS_ipc_try_send,
 	SYS_ipc_recv,
-  SYS_page_reserve,
+  	SYS_page_reserve,
 	SYS_time_msec,
+	SYS_bd_sys_start,
 	NSYSCALLS
 };
 

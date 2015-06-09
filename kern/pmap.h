@@ -17,6 +17,22 @@ extern size_t npages;
 
 extern pde_t *kern_pgdir;
 
+#define MAX_BD_SHIFT 22
+#define MAX_BD_SIZE (1<<(MAX_BD_SHIFT))
+#define MAX_BD_ORDER (MAX_BD_SHIFT-PGSHIFT)
+#define MAX_BD_NODES ((1<<(MAX_BD_ORDER+1))-1)
+
+#define BD_START_VA 0
+
+#define ORDER2SIZE(order) (1<<((order)+PGSHIFT))
+
+struct MemoryBlock {
+	uintptr_t va;
+	int size;
+	struct MemoryBlock *next; // next memory block in the current layer
+	struct MemoryBlock *free_next; // next memory block in the free list
+};
+
 
 /* This macro takes a kernel virtual address -- an address that points above
  * KERNBASE, where the machine's maximum 256MB of physical memory is mapped --
@@ -69,6 +85,11 @@ void *	mmio_map_region(physaddr_t pa, size_t size);
 
 int	user_mem_check(struct Env *env, const void *va, size_t len, int perm);
 void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
+
+int bd_sys_start(uint32_t va, int size);
+int bd_sys_get_order(int size);
+int bd_sys_alloc_blocks(int size, struct MemoryBlock** memblock);
+int bd_sys_free_blocks(struct MemoryBlock* memblock);
 
 static inline physaddr_t
 page2pa(struct PageInfo *pp)
