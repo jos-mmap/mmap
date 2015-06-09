@@ -346,13 +346,31 @@ int bd_sys_get_order(int size) {
 int bd_sys_append_block(int order, struct MemoryBlock *memblock) {
 	cprintf("append order %d with va 0x%08x\n", order, memblock->va);
 	struct MemoryBlock* tmp;
-	struct MemoryBlock* freeptr = bd_sys_binary[order];
+
+	struct MemoryBlock* ptr = bd_sys_binary[order];
 	if (freeptr == NULL)
 		bd_sys_binary[order] = memblock;
 	else {
-		while (freeptr->next != NULL) 
-			freeptr = freeptr->next;
-		freeptr->next = memblock;
+		assert(ptr->va != memblock->va);
+		if (ptr->va > memblock->va) {
+			bd_sys_binary[order] = memblock;
+			memblock->next = ptr;
+		}
+		else {
+			while (ptr->next != NULL) {
+				if (ptr->va < memblock->va && memblock->va < (ptr->next)->va) {
+					memblock->next = ptr->next;
+					ptr->next = memblock;
+					break;
+				}
+				ptr = ptr->next;
+			}
+			if (ptr->next == NULL) {
+				// reaches the end of the list
+				ptr->next = memblock;
+				memblock->next = NULL;
+			}
+		}
 	}
 	// check whether there're existing buddy
 	bool checked = true;
