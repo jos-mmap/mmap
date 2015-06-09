@@ -89,7 +89,7 @@ void	user_mem_assert(struct Env *env, const void *va, size_t len, int perm);
 int bd_sys_start(uint32_t va, int size);
 int bd_sys_get_order(int size);
 int bd_sys_alloc_blocks(int size, struct MemoryBlock** memblock);
-int bd_sys_free_blocks(struct MemoryBlock* memblock);
+int bd_sys_free_blocks(uint32_t va, int size);
 
 static inline physaddr_t
 page2pa(struct PageInfo *pp)

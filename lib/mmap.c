@@ -163,6 +163,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
 //     mmapmd_destroy(mmapmp_id);
 //     panic("mmap fdmmap failed\n");
 //   }
+  cprintf("exit mmap\n");
   return retva;
 }
 

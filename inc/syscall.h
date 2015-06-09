@@ -20,6 +20,8 @@ enum {
   	SYS_page_reserve,
 	SYS_time_msec,
 	SYS_bd_sys_start,
+	SYS_bd_sys_alloc_blocks,
+	SYS_bd_sys_free_blocks,
 	NSYSCALLS
 };
 

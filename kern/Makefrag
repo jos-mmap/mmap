@@ -97,7 +97,8 @@ KERN_BINFILES +=	user/testpteshare \
 
 # Binary files for mmap
 KERN_BINFILES += user/mmaptest \
-			#user/benchmark
+				 user/benchmark \
+				 user/bdsystest
 
 KERN_OBJFILES := $(patsubst %.c, $(OBJDIR)/%.o, $(KERN_SRCFILES))
 KERN_OBJFILES := $(patsubst %.S, $(OBJDIR)/%.o, $(KERN_OBJFILES))

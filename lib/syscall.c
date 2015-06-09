@@ -134,3 +134,13 @@ sys_bd_sys_start(uint32_t va, int size)
 {
 	return (int) syscall(SYS_bd_sys_start, 0, va, size, 0, 0, 0);
 }
+
+uint32_t 
+sys_bd_sys_alloc_blocks(uint32_t va, int size) {
+	return (uint32_t) syscall(SYS_bd_sys_alloc_blocks, 0, va, size, 0, 0, 0);
+}
+
+int 
+sys_bd_sys_free_blocks(uint32_t va, int size) {
+	return (int) syscall(SYS_bd_sys_free_blocks, 0, va, size, 0, 0, 0);
+}

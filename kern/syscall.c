@@ -275,7 +275,7 @@ sys_page_map(envid_t srcenvid, void *srcva,
     return -E_INVAL;
   }
   if ((uintptr_t)dstva >= UTOP || (uintptr_t)dstva != PTE_ADDR(dstva)) {
-    //cprintf("dstva invalid\n");
+    cprintf("dstva invalid\n");
     return -E_INVAL;
   }
   if (((perm & (PTE_U | PTE_P)) != (PTE_U | PTE_P)) ||
@@ -450,6 +450,7 @@ sys_page_reserve(void* addr, size_t length, int perm, short mmapmd_id) {
     *pte = mmapmd_id << PTXSHIFT | perm;
   }
   assert((uintptr_t)addr % PGSIZE == 0);
+  cprintf("exit\n");
   return (uintptr_t)addr;
 }
 
@@ -465,6 +466,23 @@ sys_time_msec(void)
 static int
 sys_bd_sys_start(int va, int size) {
   return bd_sys_start(va, size);
+}
+
+static uint32_t
+sys_bd_sys_alloc_blocks(uint32_t va, int size) {
+  // here try to alloc blocks start with va
+  struct MemoryBlock* memblock;
+  int r;
+  if ((r = bd_sys_alloc_blocks(size, &memblock)) < 0) {
+    cprintf("in syscall: can't allocate a block with size: %d\n", size);
+    return r;
+  }
+  return memblock->va;
+}
+
+static int
+sys_bd_sys_free_blocks(uint32_t va, int size) {
+  return bd_sys_free_blocks(va, size);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -519,6 +537,10 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
       return sys_time_msec();
     case SYS_bd_sys_start:
       return sys_bd_sys_start(a1, a2);
+    case SYS_bd_sys_alloc_blocks:
+      return sys_bd_sys_alloc_blocks(a1, a2);
+    case SYS_bd_sys_free_blocks:
+      return sys_bd_sys_free_blocks(a1, a2);
     default:
       return -E_INVAL;
   };

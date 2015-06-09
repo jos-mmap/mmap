@@ -309,6 +309,8 @@ struct MemoryBlock* bd_sys_alloc(uint32_t va, int size) {
 		panic("no free memory block for allocation");
 	}
 	struct MemoryBlock *ret = bd_sys_free_list;
+	ret->va = va;
+	ret->size = size;
 	bd_sys_free_list = ret->free_next;
 	return ret;
 }
@@ -318,11 +320,10 @@ int bd_sys_free(struct MemoryBlock* memblock) {
 		bd_sys_free_list = memblock;
 	}
 	else {
-		bd_sys_free_list->free_next = memblock;
+		memblock->free_next = bd_sys_free_list;
 		memblock->va = 0;
 		memblock->size = 0;
 		memblock->next = 0;
-		memblock->free_next = NULL;
 		bd_sys_free_list = memblock;
 	}
 	return 0;
@@ -343,8 +344,8 @@ int bd_sys_get_order(int size) {
 	return shift - PGSHIFT;
 }
 
-int bd_sys_append_block(int order, struct MemoryBlock *memblock) {
-	cprintf("append order %d with va 0x%08x\n", order, memblock->va);
+int bd_sys_append_block(int order, struct MemoryBlock *memblock, int is_free) {
+	//cprintf("append order %d with va 0x%08x\n", order, memblock->va);
 	struct MemoryBlock* tmp;
 
 	struct MemoryBlock* ptr = bd_sys_binary[order];
@@ -372,21 +373,23 @@ int bd_sys_append_block(int order, struct MemoryBlock *memblock) {
 			}
 		}
 	}
-	// check whether there're existing buddy
-	bool checked = true;
-	while (checked) {
-		checked = false;
-		for (tmp = bd_sys_binary[order]; tmp->next != NULL; tmp = tmp->next) {
-			if (tmp->va + tmp->size == (tmp->next)->va) {
-				// found 2 neighbours!
-				cprintf("coalescing 2 buddy blocks: 0x%08x 0x%08x\n", 
-					tmp->va, (tmp->next)->va);
-				struct MemoryBlock* newtmp = bd_sys_alloc(tmp->va, (tmp->size)<<1);
-				bd_sys_append_block(order+1, newtmp);
-				bd_sys_free(tmp->next);
-				bd_sys_free(tmp);
-				checked = true;
-				break;
+	if (is_free) {
+		// check whether there're existing buddy
+		bool checked = true;
+		while (checked) {
+			checked = false;
+			for (tmp = bd_sys_binary[order]; tmp->next != NULL; tmp = tmp->next) {
+				if (tmp->va + tmp->size == (tmp->next)->va) {
+					// found 2 neighbours!
+					cprintf("coalescing 2 buddy blocks: 0x%08x 0x%08x\n", 
+						tmp->va, (tmp->next)->va);
+					struct MemoryBlock* newtmp = bd_sys_alloc(tmp->va, (tmp->size)<<1);
+					bd_sys_append_block(order+1, newtmp, 1);
+					bd_sys_free(tmp->next);
+					bd_sys_free(tmp);
+					checked = true;
+					break;
+				}
 			}
 		}
 	}
@@ -408,13 +411,14 @@ int bd_sys_split(int order) {
 	struct MemoryBlock *memblock = bd_sys_binary[order];
 	// just split it!
 	if (memblock != NULL) {
-		cprintf("split at va %x size %d\n", memblock->va, ORDER2SIZE(order));
+		//cprintf("split at va %x size %x\n", memblock->va, ORDER2SIZE(order));
 		bd_sys_binary[order] = memblock->next; // freed
 		struct MemoryBlock *l_block = bd_sys_alloc(memblock->va, ORDER2SIZE(order-1));
 		struct MemoryBlock *r_block = bd_sys_alloc(memblock->va + ORDER2SIZE(order-1), ORDER2SIZE(order-1));
-		cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
-		bd_sys_append_block(order-1, l_block);
-		bd_sys_append_block(order-1, r_block);
+		//cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
+		bd_sys_append_block(order-1, l_block, 0);
+		bd_sys_append_block(order-1, r_block, 0);
+		bd_sys_free(memblock);
 		return 0;
 	}
 	// or try the upper level
@@ -425,13 +429,14 @@ int bd_sys_split(int order) {
 	memblock = bd_sys_binary[order];
 	// just split it!
 	if (memblock != NULL) {
-		cprintf("split second try at va %x size %d\n", memblock->va, ORDER2SIZE(order));
+		//cprintf("split second try at va %x size %x\n", memblock->va, ORDER2SIZE(order));
 		bd_sys_binary[order] = memblock->next; // freed
 		struct MemoryBlock *l_block = bd_sys_alloc(memblock->va, ORDER2SIZE(order-1));
 		struct MemoryBlock *r_block = bd_sys_alloc(memblock->va + ORDER2SIZE(order-1), ORDER2SIZE(order-1));
-		cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
-		bd_sys_append_block(order-1, l_block);
-		bd_sys_append_block(order-1, r_block);
+		//cprintf("to 2 blocks 0x%08x | 0x%08x\n", l_block->va, r_block->va);
+		bd_sys_append_block(order-1, l_block, 0);
+		bd_sys_append_block(order-1, r_block, 0);
+		bd_sys_free(memblock);
 		return 0;
 	}
 	// I give up.
@@ -508,15 +513,11 @@ int bd_sys_alloc_blocks(int size, struct MemoryBlock** memblock) {
 	return 0;
 }
 
-int bd_sys_free_blocks(struct MemoryBlock *memblock) {
-	if (memblock == NULL) {
-		panic("freeing NULL memblock");
-	}
-	uint32_t va = memblock->va;
-	int size = memblock->size;
+int bd_sys_free_blocks(uint32_t va, int size) {
 	int order = bd_sys_get_order(size);
+	struct MemoryBlock* memblock = bd_sys_alloc(va, size);
 	// append the freed block
-	bd_sys_append_block(order, memblock);
+	bd_sys_append_block(order, memblock, 1);
 	cprintf("freed an order %d block\n", order);
 	return 0;
 }
