@@ -110,7 +110,9 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
   }
 
   // sanity check for offset, which must be a multiple of the page size.
-  if ((offset % PGSIZE) != 0) return (void *)-E_INVAL;
+  if ((offset % PGSIZE) != 0) {
+    panic("mmap offset not aligned.");
+  }
 
   // sanity check for prot, which must not conflict with the open mode of the file.
   // TODO PROT_EXEC PROT_WRITE PROT_NONE
@@ -152,6 +154,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
 
   md = &mmap_md[mmapmd_id];
   md->beginva = retva;
+  md->endva = ROUNDUP(retva + length, PGSIZE);
   md->length = length;
   md->fd = fdnum;
   md->prot = prot;
@@ -163,7 +166,44 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
 //     mmapmd_destroy(mmapmp_id);
 //     panic("mmap fdmmap failed\n");
 //   }
-  cprintf("exit mmap\n");
   return retva;
 }
 
+// On success, munmap() returns 0.
+// On failure, it returns errno.
+int munmap(void *addr, size_t length) {
+  cprintf("enter munmap: addr %p, length %u\n", addr, length);
+
+  if (((uintptr_t)addr % PGSIZE) != 0) {
+    panic("munmap addr not aligned.");
+  }
+
+  void *unmap_begin = addr;
+  void *unmap_end   = ROUNDUP(addr + length, PGSIZE);
+
+  int i = 0;
+  void *map_begin, *map_end;
+  void *va;
+  for (i = 0 ; i < MAXMD ; ++i) {
+    if (!mmap_md[i].avail) {
+      map_begin = mmap_md[i].beginva;
+      map_end   = mmap_md[i].endva;
+      cprintf("map_begin: %p,\tmap_end %p\n", map_begin, map_end);
+      cprintf("unmap_begin: %p,\tunmap_end %p\n", unmap_begin, unmap_end);
+      if (map_begin == unmap_begin &&
+          map_end == unmap_end) {
+        for (va = map_begin ; va < map_end ; va += PGSIZE) {
+          sys_page_unmap(0, va);
+        }
+        cprintf("%p\n", unmap_begin);
+        sys_bd_sys_free_blocks((uintptr_t)unmap_begin,
+            (int)(unmap_end - unmap_begin));
+        mmapmd_destroy(i);
+      } else if (!((map_begin >= unmap_end) ||
+                   (unmap_begin >= map_end))) {
+          panic("only support unmap the region allocated in one map.");
+      }
+    }
+  }
+  return 0;
+}

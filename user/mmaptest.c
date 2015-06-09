@@ -59,7 +59,6 @@ umain(int argc, char **argv)
 		panic("creat /testmmap: %e", fd);
   cprintf("fd: %d\n", fd);
   int* addr_private = (int*)mmap((void*)USTACKTOP - 2*PGSIZE, PGSIZE, PROT_WRITE, MAP_PRIVATE, fd, 0);
-  cprintf("mmap return in user\n");
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
     cprintf("addr_private %d\n", addr_private[i]);
     addr_private[i] = 0x01010101;
@@ -100,9 +99,21 @@ umain(int argc, char **argv)
     panic("read /testmmap from %d returned %d < %d bytes",
           0, r, sizeof(buf));
   for (j = 0 ; j < sizeof(buf) ; ++j) {
-    cprintf("%d\n", buf[j]);
+    assert(buf[j] == 1);
   }
+
 	close(fd);
+
   cprintf("(mmap shared) finish checking file\n");
+
+  cprintf("(munmap) test munmap\n");
+  munmap(addr_shared, PGSIZE);
+  munmap(addr_private, PGSIZE);
+
+  cprintf("%08x\n", uvpt[PGNUM(addr_shared)]);
+  assert((uvpt[PGNUM(addr_shared)] & PTE_P) == 0);
+  assert(uvpt[PGNUM(addr_shared)] == 0);
+  assert(uvpt[PGNUM(addr_private)] == 0);
+  cprintf("(munmap) pass munmap test\n");
 
 }

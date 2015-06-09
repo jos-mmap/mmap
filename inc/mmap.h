@@ -5,6 +5,7 @@
 
 struct mmap_metadata {
   void* beginva;
+  void* endva;
   size_t length;
   int fd;
   int prot;

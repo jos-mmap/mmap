@@ -474,7 +474,6 @@ sys_page_reserve(void* addr, size_t length, int perm, short mmapmd_id) {
     *pte = mmapmd_id << PTXSHIFT | perm;
   }
   assert((uintptr_t)addr % PGSIZE == 0);
-  cprintf("exit\n");
   return (uintptr_t)addr;
 }
 

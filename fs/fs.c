@@ -502,7 +502,6 @@ file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, i
 
 	if (off >= f->f_size)
 		return -E_OFF_EXCEEDED;
-  cprintf("off: %x\n", off);
   assert(off % PGSIZE == 0);
 
   void *endva = ROUNDUP(beginva + len, PGSIZE);

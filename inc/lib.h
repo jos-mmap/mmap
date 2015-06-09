@@ -118,6 +118,7 @@ void mmapmd_init();
 int mmapmd_alloc();
 void mmapmd_destroy(int id);
 void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offset);
+int munmap(void *addr, size_t length);
 
 // file.c
 int	open(const char *path, int mode);
