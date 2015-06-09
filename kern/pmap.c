@@ -348,7 +348,7 @@ int bd_sys_append_block(int order, struct MemoryBlock *memblock) {
 	struct MemoryBlock* tmp;
 
 	struct MemoryBlock* ptr = bd_sys_binary[order];
-	if (freeptr == NULL)
+	if (ptr == NULL)
 		bd_sys_binary[order] = memblock;
 	else {
 		assert(ptr->va != memblock->va);
