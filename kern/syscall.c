@@ -435,12 +435,36 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+
+static uint32_t
+sys_bd_sys_alloc_blocks(uint32_t va, int size) {
+  // here try to alloc blocks start with va
+  struct MemoryBlock* memblock;
+  int r;
+  if ((r = bd_sys_alloc_blocks(size, &memblock)) < 0) {
+    cprintf("in syscall: can't allocate a block with size: %d\n", size);
+    return r;
+  }
+  return memblock->va;
+}
+
+static int
+sys_bd_sys_free_blocks(uint32_t va, int size) {
+  return bd_sys_free_blocks(va, size);
+}
+
+
 // TODO reserve consecutive virtual addresses
 // Returns the begin address on success.
 static int
 sys_page_reserve(void* addr, size_t length, int perm, short mmapmd_id) {
   cprintf("sys_page_reserve\n");
   // TODO do something like for addr to addr + length: page_insert(mmapmd_id << 12|perm);
+  
+  if ((addr = (void*)sys_bd_sys_alloc_blocks((uint32_t)addr, (int)length)) < 0) {
+    panic("can't allocate block for buddy system, or bdsys itself uninitialized.");
+  }
+
   pte_t* pte;
   void* va;
   for (va = addr ; va < addr + length ; va += PGSIZE) {
@@ -466,23 +490,6 @@ sys_time_msec(void)
 static int
 sys_bd_sys_start(int va, int size) {
   return bd_sys_start(va, size);
-}
-
-static uint32_t
-sys_bd_sys_alloc_blocks(uint32_t va, int size) {
-  // here try to alloc blocks start with va
-  struct MemoryBlock* memblock;
-  int r;
-  if ((r = bd_sys_alloc_blocks(size, &memblock)) < 0) {
-    cprintf("in syscall: can't allocate a block with size: %d\n", size);
-    return r;
-  }
-  return memblock->va;
-}
-
-static int
-sys_bd_sys_free_blocks(uint32_t va, int size) {
-  return bd_sys_free_blocks(va, size);
 }
 
 // Dispatches to the correct kernel function, passing the arguments.

@@ -101,7 +101,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
       flags, fdnum, offset);
 
   // first of all, here to start the mmap system(or I'd rather say, the buddy system)
-  if ((bd_sys_size = sys_bd_sys_start(UTEXT, MAX_BD_SYS_SIZE)) < 0) {
+  if ((bd_sys_size = sys_bd_sys_start(UTEXT+PTSIZE, MAX_BD_SYS_SIZE)) < 0) {
     // if the return value is less than 0, it means:
     // 1. there's no enough space for a buddy system with size MAX_BD_SIZE
     // 2. others I don't know
