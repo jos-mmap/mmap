@@ -61,6 +61,8 @@ int	sys_page_map(envid_t src_env, void *src_pg,
 int	sys_page_unmap(envid_t env, void *pg);
 int	sys_ipc_try_send(envid_t to_env, uint32_t value, void *pg, int perm);
 int	sys_ipc_recv(void *rcv_pg);
+// new syscall for mmap: reserve virtual address for future
+// accesses without allocating physical pages to it.
 void* sys_page_reserve(void* addr, size_t length, int perm, int mmapmdid);
 unsigned int sys_time_msec(void);
 int sys_bd_sys_start(uint32_t va, int size);

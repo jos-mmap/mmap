@@ -126,7 +126,7 @@ fs_init(void)
 	// Set "bitmap" to the beginning of the first bitmap block.
 	bitmap = diskaddr(2);
 	check_bitmap();
-	
+
 }
 
 // Find the disk block number slot for the 'filebno'th block in file 'f'.
@@ -160,7 +160,7 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
       if (!alloc) {
         return -E_NOT_FOUND;
       } else if ((r = alloc_block()) < 0) {
-        return r; 
+        return r;
       }
       f->f_indirect = r;
     }
@@ -492,8 +492,12 @@ file_flush(struct File *f)
 		flush_block(diskaddr(f->f_indirect));
 }
 
-// mmap
+//
+// mmap len byte from file f to environement envid at beginva
+// Read required blocks from filesystem and map the same physical page to
+// the virtual address in another environment.
 // Returns 0 on success, < 0 on error.
+//
 int
 file_mmap(struct File *f, envid_t envid, void* beginva, size_t len, off_t off, int perm) {
 

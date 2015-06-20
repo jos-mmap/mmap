@@ -302,6 +302,9 @@ serve_sync(envid_t envid, union Fsipc *req)
 	return 0;
 }
 
+//
+// Dispatch the ipc request to file_mmap
+//
 int
 serve_mmap(envid_t envid, union Fsipc *ipc) {
   struct OpenFile *o;

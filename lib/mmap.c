@@ -4,12 +4,17 @@
 
 
 // these 2 values will be used in user space
-// feel free to modify them if you want to add more space to the buddy system
+// feel free to modify them if you want to add more space to
+// the buddy system
 #define MAX_BD_SYS_SHIFT 22
 #define MAX_BD_SYS_SIZE (1<<(MAX_BD_SYS_SHIFT))
 
 int bd_sys_size = 0; // haven't been initialized
 
+//
+// Custom page fault handler - it handles both page fault in mmap
+// and normal COW.
+//
 void
 mmap_pgfault(struct UTrapframe *utf) {
   void *addr = (void *) utf->utf_fault_va;
@@ -89,6 +94,17 @@ bool mmapmd_checkid(int id) {
   return (id >= 0 && id < MAXMD);
 }
 
+//
+// User-level mmap.
+// This function is corresponding with POSIX.
+// The page fault handler has been set in lib/libmain.c before
+// calling umain.
+// Register the region of mmaped address in a global data
+// structure, mmap_metadata. Use buddy system to reserve a
+// aligned consecutive address space for mmap.
+// Returns: The begin address for mmaped area.
+// It will panic on error.
+//
 void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offset) {
 
   struct Fd* fd;
@@ -100,21 +116,26 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
       "flags %d, fdnum %d, offset %u\n", addr, length, prot,
       flags, fdnum, offset);
 
-  // first of all, here to start the mmap system(or I'd rather say, the buddy system)
+    // first of all, here to start the mmap system
+    // (or I'd rather say, the buddy system)
   if ((bd_sys_size = sys_bd_sys_start(UTEXT+PTSIZE, MAX_BD_SYS_SIZE)) < 0) {
     // if the return value is less than 0, it means:
-    // 1. there's no enough space for a buddy system with size MAX_BD_SIZE
+    // 1. there's no enough space for a buddy system with
+    // size MAX_BD_SIZE
     // 2. others I don't know
-    // note that this function will return the size the bd system really allocated
+    // note that this function will return the size the bd
+    // system really allocated
     panic("buddy system initialization failed.");
   }
 
-  // sanity check for offset, which must be a multiple of the page size.
+  // sanity check for offset, which must be a multiple of
+  // the page size.
   if ((offset % PGSIZE) != 0) {
     panic("mmap offset not aligned.");
   }
 
-  // sanity check for prot, which must not conflict with the open mode of the file.
+  // sanity check for prot, which must not conflict with the
+  // open mode of the file.
   // TODO PROT_EXEC PROT_WRITE PROT_NONE
   // TODO PRIVATE & PROT_WRITE ?
   if ((r = fd_lookup(fdnum, &fd)) < 0) {
@@ -124,9 +145,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
     panic("mmap prot invalid: prot %d", prot);
   }
 
-  // temporarily have PTE_P set
-//   int perm = PTE_P | PTE_U;
-  int perm = PTE_U;
+    int perm = PTE_U;
   if (flags & MAP_SHARED) {
     perm |= PTE_SHARE;
     if (prot & PROT_WRITE) {
@@ -143,10 +162,7 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
     exit();
   }
 
-//   cprintf("mmap perm %08x\n", perm);
-  // TODO sys_page_reserve(void* addr, size_t len, int perm)
   void* retva = sys_page_reserve(addr, length, perm, mmapmd_id);
-//   cprintf("mmap retva %p\n", retva);
   if ((uintptr_t)retva % PGSIZE != 0) {
     mmapmd_destroy(mmapmd_id);
     panic("retva not aligned");
@@ -162,15 +178,16 @@ void *mmap(void *addr, size_t length, int prot, int flags, int fdnum, off_t offs
   md->offset = offset;
   md->perm = perm;
 
-//   if ((r = fdmmap(fdnum, retva, length, offset, perm)) < 0) {
-//     mmapmd_destroy(mmapmp_id);
-//     panic("mmap fdmmap failed\n");
-//   }
   return retva;
 }
 
+//
+// User-level munmap.
+// Only support unmap the region combined with regions
+// allocated in one mmap
 // On success, munmap() returns 0.
 // On failure, it returns errno.
+//
 int munmap(void *addr, size_t length) {
   cprintf("enter munmap: addr %p, length %u\n", addr, length);
 

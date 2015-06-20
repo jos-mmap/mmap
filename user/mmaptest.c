@@ -1,45 +1,10 @@
 // test mmap
 #include <inc/lib.h>
 
-static void
-mmap_pgfault_s(struct UTrapframe *utf) {
-
-	void *addr = (void *) utf->utf_fault_va;
-	uint32_t err = utf->utf_err;
-	int r;
-
-  if ((err & FEC_WR) == 0) {
-    cprintf("%08x\n", err);
-    panic("pgfault: error is not FEC_WR.");
-  }
-  pde_t pde = uvpd[PDX(addr)];
-  pde_t pte = uvpt[PGNUM(addr)];
-  if (!((uvpd[PDX(addr)] & PTE_P) && (uvpt[PGNUM(addr)] & PTE_P)
-      && (uvpt[PGNUM(addr)] & PTE_COW))) {
-    panic("pgfault: page should be mapped PTE_COW.");
-  }
-
-  void* tmpva = (void*) ROUNDDOWN((uintptr_t) addr, PGSIZE);
-  int newperm = (uvpt[PGNUM(addr)] & PTE_SYSCALL & (~PTE_COW)) | PTE_W;
-  if ((r = sys_page_alloc(0, (void*)PFTEMP,
-                          newperm)) < 0) {
-    panic("pgfault: error %e\n", r);
-  }
-  memcpy((PFTEMP), tmpva, PGSIZE);
-  if ((r = sys_page_map(0, (void*)PFTEMP,
-                        0, tmpva, newperm)) < 0) {
-    panic("pgfault: error %e\n", r);
-  }
-  if ((r = sys_page_unmap(0, (void*)PFTEMP)) < 0)  {
-    panic("pgfault: error %e\n", r);
-  }
-}
-
 void
 umain(int argc, char **argv)
 {
   cprintf("yeah\n");
-//   set_pgfault_handler(mmap_pgfault); //?
   int r, i, j, fd;
   char buf[512];
 
@@ -60,11 +25,13 @@ umain(int argc, char **argv)
   cprintf("fd: %d\n", fd);
   int* addr_private = (int*)mmap((void*)USTACKTOP - 2*PGSIZE, PGSIZE, PROT_WRITE, MAP_PRIVATE, fd, 0);
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
+    // Checks the file content is correct.
     if (i % 128 == 0) {
       assert(addr_private[i] == i*4);
     } else {
       assert(addr_private[i] == 0);
     }
+    // Write to private address.
     addr_private[i] = 0x01010101;
   }
   close(fd);
@@ -78,6 +45,8 @@ umain(int argc, char **argv)
     panic("read /testmmap from %d returned %d < %d bytes",
           0, r, sizeof(buf));
   for (j = 0 ; j < sizeof(buf) ; ++j) {
+    // Checks the change to private address
+    // doesn't change the file.
     assert(buf[j] == 0);
   }
 	close(fd);
@@ -89,6 +58,7 @@ umain(int argc, char **argv)
   cprintf("fd: %d\n", fd);
   int* addr_shared = (int*)mmap((void*)USTACKTOP - 3*PGSIZE, PGSIZE, PROT_WRITE, MAP_SHARED, fd, 0);
   for (i = 0 ; i < PGSIZE/4 ; ++i) {
+    // Checks the file content is correct.
     if (i % 128 == 0) {
       assert(addr_shared[i] == i*4);
     } else {
@@ -107,6 +77,8 @@ umain(int argc, char **argv)
     panic("read /testmmap from %d returned %d < %d bytes",
           0, r, sizeof(buf));
   for (j = 0 ; j < sizeof(buf) ; ++j) {
+    // Checks the change to private address
+    // is synced with the filesystem correctly.
     assert(buf[j] == 1);
   }
 
@@ -118,6 +90,7 @@ umain(int argc, char **argv)
   munmap(addr_shared, PGSIZE);
   munmap(addr_private, PGSIZE);
 
+  // Checks for munmap. All pages are succesfully unmaped.
   assert((uvpt[PGNUM(addr_shared)] & PTE_P) == 0);
   assert(uvpt[PGNUM(addr_shared)] == 0);
   assert(uvpt[PGNUM(addr_private)] == 0);
